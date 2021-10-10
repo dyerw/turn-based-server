@@ -1,14 +1,6 @@
-use std::sync::{Arc, Mutex};
-
-use futures::StreamExt;
-use multi_chess::{
-    frame::{Frame, FrameCodec, PlayerAction},
-    game::{Game, GameError},
-};
-use tokio::net::{TcpListener, TcpStream};
+use multi_chess::{frame::FrameCodec, peer::Peer, server_state::ServerState};
+use tokio::net::TcpListener;
 use tokio_util::codec::Framed;
-
-type ServerState = Arc<Mutex<Game>>;
 
 #[tokio::main]
 async fn main() {
@@ -16,48 +8,16 @@ async fn main() {
 
     println!("Listening on port 1337");
 
-    let server_state: ServerState = Arc::new(Mutex::new(Game::new()));
+    let server_state: ServerState = ServerState::new();
 
     loop {
         let (socket, _) = listener.accept().await.unwrap();
 
         let server_state = server_state.clone();
+        let framed_socket = Framed::new(socket, FrameCodec {});
+        let mut peer = Peer::new(framed_socket, server_state);
         tokio::spawn(async move {
-            process(socket, server_state).await;
+            peer.process().await;
         });
-    }
-}
-
-async fn process(stream: TcpStream, server_state: ServerState) {
-    let mut frame_stream = Framed::new(stream, FrameCodec {});
-    loop {
-        let frame = frame_stream.next().await;
-        match frame {
-            Some(r) => match r {
-                Ok(f) => {
-                    println!("{:#?}", f);
-                    match f {
-                        Frame::PlayerAction(action) => {
-                            let mut game = server_state.lock().unwrap();
-                            match handle_player_action(action, &mut game) {
-                                Ok(_) => {}
-                                Err(ge) => {
-                                    println!("Game error {:?}", ge);
-                                }
-                            }
-                            println!("{}", game);
-                        }
-                    }
-                }
-                Err(e) => {}
-            },
-            _ => {}
-        }
-    }
-}
-
-fn handle_player_action(a: PlayerAction, game: &mut Game) -> Result<(), GameError> {
-    match a {
-        PlayerAction::MovePiece { player, from, to } => game.move_piece(from, to),
     }
 }
