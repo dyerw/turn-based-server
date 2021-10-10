@@ -41,9 +41,9 @@ pub struct FrameCodec {}
 
 fn make_move_frame(color: Color, from: u8, to: u8) -> Frame {
     let from_x: u8 = from >> 4;
-    let from_y: u8 = from & 0x05u8;
+    let from_y: u8 = from & 0x0Fu8;
     let to_x: u8 = to >> 4;
-    let to_y: u8 = to & 0x05u8;
+    let to_y: u8 = to & 0x0Fu8;
     Frame::PlayerAction(PlayerAction::MovePiece {
         player: color,
         from: Position {
@@ -92,6 +92,10 @@ impl Decoder for FrameCodec {
     }
 }
 
+fn position_to_byte(p: &Position) -> u8 {
+    return (p.x << 4) | p.y;
+}
+
 impl Encoder<Frame> for FrameCodec {
     type Error = FrameError;
     fn encode(&mut self, item: Frame, dst: &mut BytesMut) -> Result<(), Self::Error> {
@@ -102,7 +106,12 @@ impl Encoder<Frame> for FrameCodec {
                         Color::W => 0x01u8,
                         Color::B => 0x02u8,
                     };
-                    let frame: &[u8] = &[0x01u8, color_byte, from.x, from.y, to.x, to.y];
+                    let frame: &[u8] = &[
+                        0x01u8,
+                        color_byte,
+                        position_to_byte(&from),
+                        position_to_byte(&to),
+                    ];
                     dst.extend_from_slice(frame);
                     Ok(())
                 }

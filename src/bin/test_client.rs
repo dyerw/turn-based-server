@@ -17,6 +17,13 @@ async fn main() {
     }))
     .await
     .unwrap();
+    sink.feed(Frame::PlayerAction(PlayerAction::MovePiece {
+        player: Color::B,
+        from: Position { x: 5, y: 5 },
+        to: Position { x: 7, y: 7 },
+    }))
+    .await
+    .unwrap();
     sink.flush().await.unwrap();
     sink.close().await.unwrap();
     println!("Done");
