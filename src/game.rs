@@ -1,12 +1,12 @@
 use std::fmt;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Color {
     B,
     W,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Piece {
     K(Color),
     Q(Color),
@@ -53,7 +53,7 @@ fn space_to_unicode(s: &Space) -> String {
         },
     }
 }
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Position {
     pub x: u8,
     pub y: u8,

@@ -40,6 +40,7 @@ impl Peer {
             Frame::PlayerAction(action) => {
                 self.handle_player_action(action);
             }
+            Frame::Lobby(action) => {}
         }
     }
 

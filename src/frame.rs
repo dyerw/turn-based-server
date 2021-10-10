@@ -4,7 +4,7 @@ use tokio_util::codec::{Decoder, Encoder};
 
 use crate::game::{Color, Position};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum PlayerAction {
     MovePiece {
         player: Color,
@@ -13,17 +13,38 @@ pub enum PlayerAction {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum PlayerActionError {
     InvalidColorByte(u8),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum LobbyAction {
+    CreateLobby { name: String },
+}
+
+#[derive(Debug, PartialEq)]
+pub enum LobbyActionError {
+    LobbyNameTooLong,
+    LobbyNameUtf8Error,
 }
 
 #[derive(Debug)]
 pub enum FrameError {
     IoError(io::Error),
     InvalidFrameType(u8),
-    InvalidFrameData(PlayerActionError),
+    InvalidPlayerFrameData(PlayerActionError),
+    InvalidLobbyFrameData(LobbyActionError),
     Incomplete,
+}
+
+impl PartialEq for FrameError {
+    fn eq(&self, other: &Self) -> bool {
+        match other {
+            &FrameError::IoError(_) => false,
+            _ => true,
+        }
+    }
 }
 
 impl From<io::Error> for FrameError {
@@ -32,9 +53,10 @@ impl From<io::Error> for FrameError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Frame {
     PlayerAction(PlayerAction),
+    Lobby(LobbyAction),
 }
 
 pub struct FrameCodec {}
@@ -79,10 +101,24 @@ impl Decoder for FrameCodec {
                 match color_byte {
                     0x01 => Ok(Some(make_move_frame(Color::W, from_byte, to_byte))),
                     0x02 => Ok(Some(make_move_frame(Color::B, from_byte, to_byte))),
-                    b => Err(FrameError::InvalidFrameData(
+                    b => Err(FrameError::InvalidPlayerFrameData(
                         PlayerActionError::InvalidColorByte(b),
                     )),
                 }
+            }
+            0x10 => {
+                let name_len = src[1];
+                if src.len() < (name_len + 2).into() {
+                    return Ok(None);
+                }
+
+                src.advance(2);
+
+                String::from_utf8(src.split_to(name_len.into()).to_vec())
+                    .map(|name| Some(Frame::Lobby(LobbyAction::CreateLobby { name })))
+                    .map_err(|_| {
+                        FrameError::InvalidLobbyFrameData(LobbyActionError::LobbyNameUtf8Error)
+                    })
             }
             b => {
                 src.advance(1);
@@ -116,14 +152,32 @@ impl Encoder<Frame> for FrameCodec {
                     Ok(())
                 }
             },
+            Frame::Lobby(a) => match a {
+                LobbyAction::CreateLobby { name } => {
+                    if name.len() > 255 {
+                        return Err(FrameError::InvalidLobbyFrameData(
+                            LobbyActionError::LobbyNameTooLong,
+                        ));
+                    }
+                    let mut frame: Vec<u8> = vec![0x10u8, name.len() as u8];
+                    frame.extend(name.into_bytes());
+                    dst.extend(frame);
+                    Ok(())
+                }
+            },
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::frame::position_to_byte;
+    use bytes::BytesMut;
+    use tokio_util::codec::{Decoder, Encoder};
+
     use crate::game::Position;
+
+    use super::LobbyAction;
+    use super::{position_to_byte, Frame, FrameCodec, FrameError, LobbyActionError};
 
     #[test]
     fn test_position_to_byte() {
@@ -131,5 +185,44 @@ mod tests {
         let p2 = Position { x: 8, y: 5 };
         assert_eq!(position_to_byte(&p1), 0x11u8);
         assert_eq!(position_to_byte(&p2), 0x85u8);
+    }
+
+    #[test]
+    fn test_create_lobby_codec() {
+        let create_lobby = Frame::Lobby(LobbyAction::CreateLobby {
+            name: "My Lobby".into(),
+        });
+
+        let bytes = &mut BytesMut::new();
+        let mut codec = FrameCodec {};
+        let encoded_frame = codec.encode(create_lobby, bytes);
+
+        assert_eq!(encoded_frame, Ok(()));
+
+        let decoded_frame = codec.decode(bytes);
+
+        assert_eq!(
+            Ok(Some(Frame::Lobby(LobbyAction::CreateLobby {
+                name: "My Lobby".into(),
+            }))),
+            decoded_frame
+        );
+    }
+
+    #[test]
+    fn test_create_lobby_too_long() {
+        let create_lobby = Frame::Lobby(LobbyAction::CreateLobby {
+            name: ['a'; 256].iter().cloned().collect(),
+        });
+
+        let bytes = &mut BytesMut::new();
+        let mut codec = FrameCodec {};
+        let encoded_frame = codec.encode(create_lobby, bytes);
+        assert_eq!(
+            encoded_frame,
+            Err(FrameError::InvalidLobbyFrameData(
+                LobbyActionError::LobbyNameTooLong
+            ))
+        )
     }
 }
