@@ -119,3 +119,17 @@ impl Encoder<Frame> for FrameCodec {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::frame::position_to_byte;
+    use crate::game::Position;
+
+    #[test]
+    fn test_position_to_byte() {
+        let p1 = Position { x: 1, y: 1 };
+        let p2 = Position { x: 8, y: 5 };
+        assert_eq!(position_to_byte(&p1), 0x11u8);
+        assert_eq!(position_to_byte(&p2), 0x85u8);
+    }
+}
