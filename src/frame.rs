@@ -75,6 +75,7 @@ impl Decoder for FrameCodec {
                 let from_byte = src[2];
                 let to_byte = src[3];
 
+                src.advance(4);
                 match color_byte {
                     0x01 => Ok(Some(make_move_frame(Color::W, from_byte, to_byte))),
                     0x02 => Ok(Some(make_move_frame(Color::B, from_byte, to_byte))),
