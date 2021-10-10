@@ -2,8 +2,8 @@ use std::sync::{Arc, Mutex};
 
 use futures::StreamExt;
 use multi_chess::{
-    frame::{Frame, FrameCodec},
-    game::Game,
+    frame::{Frame, FrameCodec, PlayerAction},
+    game::{Game, GameError},
 };
 use tokio::net::{TcpListener, TcpStream};
 use tokio_util::codec::Framed;
@@ -36,10 +36,28 @@ async fn process(stream: TcpStream, server_state: ServerState) {
             Some(r) => match r {
                 Ok(f) => {
                     println!("{:#?}", f);
+                    match f {
+                        Frame::PlayerAction(action) => {
+                            let mut game = server_state.lock().unwrap();
+                            match handle_player_action(action, &mut game) {
+                                Ok(_) => {}
+                                Err(ge) => {
+                                    println!("Game error {:?}", ge);
+                                }
+                            }
+                            println!("{}", game);
+                        }
+                    }
                 }
                 Err(e) => {}
             },
             _ => {}
         }
+    }
+}
+
+fn handle_player_action(a: PlayerAction, game: &mut Game) -> Result<(), GameError> {
+    match a {
+        PlayerAction::MovePiece { player, from, to } => game.move_piece(from, to),
     }
 }

@@ -13,7 +13,21 @@ async fn main() {
     sink.feed(Frame::PlayerAction(PlayerAction::MovePiece {
         player: Color::W,
         from: Position { x: 1, y: 1 },
-        to: Position { x: 2, y: 2 },
+        to: Position { x: 1, y: 2 },
+    }))
+    .await
+    .unwrap();
+    sink.feed(Frame::PlayerAction(PlayerAction::MovePiece {
+        player: Color::W,
+        from: Position { x: 1, y: 2 },
+        to: Position { x: 1, y: 3 },
+    }))
+    .await
+    .unwrap();
+    sink.feed(Frame::PlayerAction(PlayerAction::MovePiece {
+        player: Color::W,
+        from: Position { x: 0, y: 0 },
+        to: Position { x: 0, y: 4 },
     }))
     .await
     .unwrap();
