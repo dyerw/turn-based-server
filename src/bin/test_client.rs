@@ -1,7 +1,8 @@
 use futures::SinkExt;
 use multi_chess::{
-    frame::{Frame, FrameCodec, LobbyAction, PlayerAction},
+    codec::{Frame, FrameCodec},
     game::{Color, Position},
+    message::{game::GameMessage, lobby::LobbyMessage},
 };
 use tokio::net::TcpStream;
 use tokio_util::codec::FramedWrite;
@@ -10,33 +11,33 @@ use tokio_util::codec::FramedWrite;
 async fn main() {
     let stream = TcpStream::connect("127.0.0.1:1337").await.unwrap();
     let mut sink = FramedWrite::new(stream, FrameCodec {});
-    sink.feed(Frame::Lobby(LobbyAction::CreateLobby {
+    sink.feed(Frame::Lobby(LobbyMessage::CreateLobby {
         name: "new lobby".into(),
     }))
     .await
     .unwrap();
-    sink.feed(Frame::PlayerAction(PlayerAction::MovePiece {
+    sink.feed(Frame::Game(GameMessage::MovePiece {
         player: Color::W,
         from: Position { x: 1, y: 1 },
         to: Position { x: 1, y: 2 },
     }))
     .await
     .unwrap();
-    sink.feed(Frame::PlayerAction(PlayerAction::MovePiece {
+    sink.feed(Frame::Game(GameMessage::MovePiece {
         player: Color::W,
         from: Position { x: 1, y: 2 },
         to: Position { x: 1, y: 3 },
     }))
     .await
     .unwrap();
-    sink.feed(Frame::PlayerAction(PlayerAction::MovePiece {
+    sink.feed(Frame::Game(GameMessage::MovePiece {
         player: Color::W,
         from: Position { x: 0, y: 0 },
         to: Position { x: 0, y: 4 },
     }))
     .await
     .unwrap();
-    sink.feed(Frame::PlayerAction(PlayerAction::MovePiece {
+    sink.feed(Frame::Game(GameMessage::MovePiece {
         player: Color::B,
         from: Position { x: 5, y: 5 },
         to: Position { x: 7, y: 7 },

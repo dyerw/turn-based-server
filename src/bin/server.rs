@@ -1,4 +1,4 @@
-use multi_chess::{frame::FrameCodec, peer::Peer, server_state::ServerState};
+use multi_chess::{codec::FrameCodec, peer::Peer, server_state::ServerState};
 use tokio::net::TcpListener;
 use tokio_util::codec::Framed;
 

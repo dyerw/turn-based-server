@@ -3,8 +3,9 @@ use tokio::net::TcpStream;
 use tokio_util::codec::Framed;
 
 use crate::{
-    frame::{Frame, FrameCodec, LobbyAction, PlayerAction},
+    codec::{Frame, FrameCodec},
     game::Color,
+    message::{game::GameMessage, lobby::LobbyMessage},
     server_state::ServerState,
 };
 
@@ -46,18 +47,18 @@ impl Peer {
     fn process_frame(&mut self, frame: Frame) {
         println!("Processing frame {:?}", frame);
         match frame {
-            Frame::PlayerAction(action) => {
-                self.handle_player_action(action);
+            Frame::Game(message) => {
+                self.handle_game_message(message);
             }
-            Frame::Lobby(action) => {
-                self.handle_lobby_action(action);
+            Frame::Lobby(message) => {
+                self.handle_lobby_message(message);
             }
         }
     }
 
-    fn handle_lobby_action(&mut self, action: LobbyAction) {
-        match action {
-            LobbyAction::CreateLobby { name } => {
+    fn handle_lobby_message(&mut self, message: LobbyMessage) {
+        match message {
+            LobbyMessage::CreateLobby { name } => {
                 self.lobby_state = LobbyState::InGame {
                     name,
                     color: Color::W,
@@ -66,18 +67,18 @@ impl Peer {
         }
     }
 
-    fn handle_player_action(&mut self, action: PlayerAction) {
+    fn handle_game_message(&mut self, message: GameMessage) {
         match &self.lobby_state {
             LobbyState::OutOfLobby => {}
             LobbyState::InGame { name, color } => {
                 let mut game = self.server_state.game.lock().unwrap();
-                match action {
-                    PlayerAction::MovePiece { player, from, to } => {
-                        if *color == player {
-                            println!("Cannot move other players pieces!");
-                            println!("Lobby state {:?} Move color {:?}", color, player);
-                            return;
-                        }
+                match message {
+                    GameMessage::MovePiece { player, from, to } => {
+                        // if *color == player {
+                        //     println!("Cannot move other players pieces!");
+                        //     println!("Lobby state {:?} Move color {:?}", color, player);
+                        //     return;
+                        // }
                         match game.move_piece(from, to) {
                             Ok(_) => {
                                 println!("{}", game);
