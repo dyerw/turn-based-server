@@ -24,6 +24,7 @@ pub enum LobbyManagerResponseError {
     LobbyNameTaken,
 }
 
+#[derive(Default, Debug)]
 pub struct LobbyManager {
     lobbies: HashMap<String, WeakAddr<Lobby>>,
 }
@@ -40,12 +41,14 @@ impl Handler<LobbyManagerMessage> for LobbyManager {
                 name,
                 creating_session,
             } => {
+                println!("Creating lobby");
                 if self.lobbies.contains_key(&name) {
                     LobbyManagerResponse(Err(LobbyManagerResponseError::LobbyNameTaken))
                 } else {
                     let lobby = Lobby::new(creating_session);
                     let addr = Lobby::start(lobby);
                     self.lobbies.insert(name, addr.downgrade());
+                    println!("{:?}", self.lobbies);
                     LobbyManagerResponse(Ok(LobbyManagerResponseSuccess::CreatedLobby { addr }))
                 }
             }

@@ -4,6 +4,7 @@ use crate::game::Game;
 
 use super::session::Session;
 
+#[derive(Debug)]
 pub struct Lobby {
     game: Option<Game>,
     white_player: Option<Addr<Session>>,

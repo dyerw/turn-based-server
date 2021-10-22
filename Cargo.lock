@@ -27,11 +27,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "actix-macros"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "465a6172cf69b960917811022d8f29bc0b7fa1398bc4f78b3c466673db1213b6"
+dependencies = [
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "actix-rt"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ea360596a50aa9af459850737f99293e5cb9114ae831118cb6026b3bbc7583ad"
 dependencies = [
+ "actix-macros",
  "futures-core",
  "tokio",
 ]
@@ -272,6 +283,7 @@ name = "multi-chess"
 version = "0.1.0"
 dependencies = [
  "actix",
+ "actix-rt",
  "bytes",
  "futures",
  "rmp-serde",

@@ -1,23 +1,33 @@
-use multi_chess::{codec::FrameCodec, peer::Peer, server_state::ServerState};
-use tokio::net::TcpListener;
-use tokio_util::codec::Framed;
+use actix::{io::FramedWrite, spawn, Actor, StreamHandler};
+use multi_chess::{
+    actor::{lobby_manager::LobbyManager, session::Session},
+    codec::FrameCodec,
+};
+use tokio::{io::split, net::TcpListener};
+use tokio_util::codec::FramedRead;
 
-#[tokio::main]
+#[actix_rt::main]
 async fn main() {
     let listener = TcpListener::bind("127.0.0.1:1337").await.unwrap();
 
     println!("Listening on port 1337");
 
-    let server_state: ServerState = ServerState::new();
+    let lobby_manager = LobbyManager::default();
+    let lobby_manager_addr = lobby_manager.start();
 
     loop {
         let (socket, _) = listener.accept().await.unwrap();
+        let (socket_read, socket_write) = split(socket);
+        let weak_lobby_manager_addr = lobby_manager_addr.downgrade();
 
-        let server_state = server_state.clone();
-        let framed_socket = Framed::new(socket, FrameCodec {});
-        let mut peer = Peer::new(framed_socket, server_state);
-        tokio::spawn(async move {
-            peer.process().await;
-        });
+        spawn(async move {
+            Session::create(|ctx| {
+                let framed_write = FramedWrite::new(socket_write, FrameCodec, ctx);
+                Session::add_stream(FramedRead::new(socket_read, FrameCodec), ctx);
+                Session::new(weak_lobby_manager_addr, framed_write)
+            });
+        })
+        .await
+        .unwrap();
     }
 }

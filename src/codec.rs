@@ -28,7 +28,7 @@ pub enum Frame {
     Lobby(LobbyMessage),
 }
 
-pub struct FrameCodec {}
+pub struct FrameCodec;
 
 impl Decoder for FrameCodec {
     type Item = Frame;
