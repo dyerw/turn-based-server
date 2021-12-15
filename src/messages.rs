@@ -2,7 +2,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::game::{Color, Position};
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+#[serde(tag = "tag", content = "value")]
 pub enum Message {
     CreateLobby {
         name: String,

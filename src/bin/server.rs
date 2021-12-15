@@ -1,4 +1,5 @@
 use actix::{io::FramedWrite, spawn, Actor, StreamHandler};
+use log::{debug, error, info};
 use multi_chess::{
     actor::{lobby_manager::LobbyManager, session::Session},
     codec::MessageCodec,
@@ -8,15 +9,20 @@ use tokio_util::codec::FramedRead;
 
 #[actix_rt::main]
 async fn main() {
+    env_logger::init();
     let listener = TcpListener::bind("127.0.0.1:1337").await.unwrap();
 
-    println!("Listening on port 1337");
+    info!("Listening on port 1337");
 
     let lobby_manager = LobbyManager::default();
     let lobby_manager_addr = lobby_manager.start();
 
     loop {
         let (socket, _) = listener.accept().await.unwrap();
+        info!(
+            "Accepting connection from {}",
+            socket.local_addr().unwrap().ip()
+        );
         let (socket_read, socket_write) = split(socket);
         let weak_lobby_manager_addr = lobby_manager_addr.downgrade();
 
