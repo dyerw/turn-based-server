@@ -1,8 +1,8 @@
 use futures::SinkExt;
 use multi_chess::{
-    codec::{Frame, FrameCodec},
+    codec::MessageCodec,
     game::{Color, Position},
-    message::{game::GameMessage, lobby::LobbyMessage},
+    messages::Message,
 };
 use tokio::net::TcpStream;
 use tokio_util::codec::FramedWrite;
@@ -10,10 +10,10 @@ use tokio_util::codec::FramedWrite;
 #[tokio::main]
 async fn main() {
     let stream = TcpStream::connect("127.0.0.1:1337").await.unwrap();
-    let mut sink = FramedWrite::new(stream, FrameCodec {});
-    sink.feed(Frame::Lobby(LobbyMessage::CreateLobby {
+    let mut sink = FramedWrite::new(stream, MessageCodec {});
+    sink.feed(Message::CreateLobby {
         name: "new lobby".into(),
-    }))
+    })
     .await
     .unwrap();
     // sink.feed(Frame::Game(GameMessage::MovePiece {

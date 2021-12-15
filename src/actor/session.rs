@@ -1,12 +1,11 @@
-use crate::codec::{Frame, FrameCodec, FrameError};
-use crate::message::lobby::LobbyMessage;
+use crate::codec::{CodecError, MessageCodec};
+use crate::messages::Message;
 use actix::fut::ready;
 use actix::io::WriteHandler;
 use actix::{
     io::FramedWrite, Actor, ActorFutureExt, Addr, Context, ContextFutureSpawner, WrapFuture,
 };
 use actix::{AsyncContext, StreamHandler, WeakAddr};
-use std::io;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::io::WriteHalf;
 use tokio::net::TcpStream;
@@ -25,7 +24,7 @@ pub struct Session {
     id: usize,
     lobby: Option<Addr<Lobby>>,
     lobby_manager: WeakAddr<LobbyManager>,
-    tcp_stream_write: FramedWrite<Frame, WriteHalf<TcpStream>, FrameCodec>,
+    tcp_stream_write: FramedWrite<Message, WriteHalf<TcpStream>, MessageCodec>,
 }
 
 impl std::fmt::Debug for Session {
@@ -37,7 +36,7 @@ impl std::fmt::Debug for Session {
 impl Session {
     pub fn new(
         lobby_manager: WeakAddr<LobbyManager>,
-        tcp_stream_write: FramedWrite<Frame, WriteHalf<TcpStream>, FrameCodec>,
+        tcp_stream_write: FramedWrite<Message, WriteHalf<TcpStream>, MessageCodec>,
     ) -> Session {
         println!("Created Session");
         Session {
@@ -49,16 +48,16 @@ impl Session {
     }
 }
 
-impl WriteHandler<FrameError> for Session {}
+impl WriteHandler<CodecError> for Session {}
 
 impl Actor for Session {
     type Context = Context<Self>;
 }
 
-impl StreamHandler<Result<Frame, FrameError>> for Session {
-    fn handle(&mut self, item: Result<Frame, FrameError>, ctx: &mut Self::Context) {
+impl StreamHandler<Result<Message, CodecError>> for Session {
+    fn handle(&mut self, item: Result<Message, CodecError>, ctx: &mut Self::Context) {
         match item {
-            Ok(Frame::Lobby(LobbyMessage::CreateLobby { name })) => {
+            Ok(Message::CreateLobby { name }) => {
                 let lm_addr = self.lobby_manager.upgrade();
 
                 match lm_addr {

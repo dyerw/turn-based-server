@@ -1,7 +1,7 @@
 use actix::{io::FramedWrite, spawn, Actor, StreamHandler};
 use multi_chess::{
     actor::{lobby_manager::LobbyManager, session::Session},
-    codec::FrameCodec,
+    codec::MessageCodec,
 };
 use tokio::{io::split, net::TcpListener};
 use tokio_util::codec::FramedRead;
@@ -22,8 +22,8 @@ async fn main() {
 
         spawn(async move {
             Session::create(|ctx| {
-                let framed_write = FramedWrite::new(socket_write, FrameCodec, ctx);
-                Session::add_stream(FramedRead::new(socket_read, FrameCodec), ctx);
+                let framed_write = FramedWrite::new(socket_write, MessageCodec, ctx);
+                Session::add_stream(FramedRead::new(socket_read, MessageCodec), ctx);
                 Session::new(weak_lobby_manager_addr, framed_write)
             });
         })
