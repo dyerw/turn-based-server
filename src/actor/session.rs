@@ -6,6 +6,7 @@ use actix::{
     io::FramedWrite, Actor, ActorFutureExt, Addr, Context, ContextFutureSpawner, WrapFuture,
 };
 use actix::{AsyncContext, StreamHandler, WeakAddr};
+use log::{debug, error};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::io::WriteHalf;
 use tokio::net::TcpStream;
@@ -38,13 +39,14 @@ impl Session {
         lobby_manager: WeakAddr<LobbyManager>,
         tcp_stream_write: FramedWrite<Message, WriteHalf<TcpStream>, MessageCodec>,
     ) -> Session {
-        println!("Created Session");
-        Session {
+        let s = Session {
             id: get_id(),
             lobby: None,
             lobby_manager,
             tcp_stream_write,
-        }
+        };
+        debug!("Created Session {}", s.id);
+        s
     }
 }
 
@@ -56,6 +58,8 @@ impl Actor for Session {
 
 impl StreamHandler<Result<Message, CodecError>> for Session {
     fn handle(&mut self, item: Result<Message, CodecError>, ctx: &mut Self::Context) {
+        println!("Hey");
+        debug!("Session {} received {:?}", self.id, item);
         match item {
             Ok(Message::CreateLobby { name }) => {
                 let lm_addr = self.lobby_manager.upgrade();
@@ -82,6 +86,32 @@ impl StreamHandler<Result<Message, CodecError>> for Session {
                     }
                     None => {
                         println!("Lobby Manager Addr not available!");
+                    }
+                }
+            }
+            Ok(Message::ListLobbiesRequest) => {
+                let lm_addr = self.lobby_manager.upgrade();
+                match lm_addr {
+                    Some(a) => {
+                        a.send(LobbyManagerMessage::ListLobbies)
+                            .into_actor(self)
+                            .then(|res, act, ctx| {
+                                match res {
+                                    Ok(LobbyManagerResponse(Ok(
+                                        LobbyManagerResponseSuccess::LobbiesList { lobbies },
+                                    ))) => act
+                                        .tcp_stream_write
+                                        .write(Message::ListLobbiesResponse { lobbies }),
+                                    _ => {
+                                        error!("FIXME: Give a better error here.");
+                                    }
+                                }
+                                ready(())
+                            })
+                            .wait(ctx);
+                    }
+                    None => {
+                        error!("Unable to communicate with lobby manager from session");
                     }
                 }
             }

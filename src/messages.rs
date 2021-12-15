@@ -11,6 +11,10 @@ pub enum Message {
     JoinLobby {
         name: String,
     },
+    ListLobbiesRequest,
+    ListLobbiesResponse {
+        lobbies: Vec<String>,
+    },
     MovePiece {
         player: Color,
         from: Position,
