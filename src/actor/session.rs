@@ -58,7 +58,6 @@ impl Actor for Session {
 
 impl StreamHandler<Result<Message, CodecError>> for Session {
     fn handle(&mut self, item: Result<Message, CodecError>, ctx: &mut Self::Context) {
-        println!("Hey");
         debug!("Session {} received {:?}", self.id, item);
         match item {
             Ok(Message::CreateLobby { name }) => {
