@@ -4,7 +4,7 @@ use crate::game::{Color, Position};
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 #[serde(tag = "tag", content = "value")]
-pub enum Message {
+pub enum NetworkMessage {
     CreateLobby {
         name: String,
     },

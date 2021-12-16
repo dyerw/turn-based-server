@@ -1,5 +1,5 @@
 use crate::codec::{CodecError, MessageCodec};
-use crate::messages::Message;
+use crate::messages::NetworkMessage;
 use actix::fut::ready;
 use actix::io::WriteHandler;
 use actix::{
@@ -25,7 +25,7 @@ pub struct Session {
     id: usize,
     lobby: Option<Addr<Lobby>>,
     lobby_manager: WeakAddr<LobbyManager>,
-    tcp_stream_write: FramedWrite<Message, WriteHalf<TcpStream>, MessageCodec>,
+    tcp_stream_write: FramedWrite<NetworkMessage, WriteHalf<TcpStream>, MessageCodec>,
 }
 
 impl std::fmt::Debug for Session {
@@ -37,7 +37,7 @@ impl std::fmt::Debug for Session {
 impl Session {
     pub fn new(
         lobby_manager: WeakAddr<LobbyManager>,
-        tcp_stream_write: FramedWrite<Message, WriteHalf<TcpStream>, MessageCodec>,
+        tcp_stream_write: FramedWrite<NetworkMessage, WriteHalf<TcpStream>, MessageCodec>,
     ) -> Session {
         let s = Session {
             id: get_id(),
@@ -56,11 +56,11 @@ impl Actor for Session {
     type Context = Context<Self>;
 }
 
-impl StreamHandler<Result<Message, CodecError>> for Session {
-    fn handle(&mut self, item: Result<Message, CodecError>, ctx: &mut Self::Context) {
+impl StreamHandler<Result<NetworkMessage, CodecError>> for Session {
+    fn handle(&mut self, item: Result<NetworkMessage, CodecError>, ctx: &mut Self::Context) {
         debug!("Session {} received {:?}", self.id, item);
         match item {
-            Ok(Message::CreateLobby { name }) => {
+            Ok(NetworkMessage::CreateLobby { name }) => {
                 let lm_addr = self.lobby_manager.upgrade();
 
                 match lm_addr {
@@ -88,7 +88,7 @@ impl StreamHandler<Result<Message, CodecError>> for Session {
                     }
                 }
             }
-            Ok(Message::ListLobbiesRequest) => {
+            Ok(NetworkMessage::ListLobbiesRequest) => {
                 let lm_addr = self.lobby_manager.upgrade();
                 match lm_addr {
                     Some(a) => {
@@ -100,7 +100,7 @@ impl StreamHandler<Result<Message, CodecError>> for Session {
                                         LobbyManagerResponseSuccess::LobbiesList { lobbies },
                                     ))) => act
                                         .tcp_stream_write
-                                        .write(Message::ListLobbiesResponse { lobbies }),
+                                        .write(NetworkMessage::ListLobbiesResponse { lobbies }),
                                     _ => {
                                         error!("FIXME: Give a better error here.");
                                     }

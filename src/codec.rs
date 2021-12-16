@@ -10,7 +10,7 @@ use std::io::Write;
 use thiserror::Error;
 use tokio_util::codec::{Decoder, Encoder};
 
-use crate::messages::Message;
+use crate::messages::NetworkMessage;
 
 #[derive(Debug, Error)]
 pub enum CodecError {
@@ -19,7 +19,7 @@ pub enum CodecError {
     #[error("could not deserialize msgpack")]
     MsgPackDeserializationError,
     #[error("could not serialize msgpack for message {0:?}")]
-    MsgPackSerializationError(Message),
+    MsgPackSerializationError(NetworkMessage),
     #[error("IOError")]
     Io(#[from] std::io::Error),
 }
@@ -56,7 +56,7 @@ fn encode_netstring(item: &Vec<u8>, dst: &mut BytesMut) -> Result<(), CodecError
 }
 
 impl Decoder for MessageCodec {
-    type Item = Message;
+    type Item = NetworkMessage;
     type Error = CodecError;
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
@@ -66,7 +66,7 @@ impl Decoder for MessageCodec {
 
         let parsed = netstring_parser(src);
         match parsed {
-            Ok(Some(msgpack)) => from_read::<&[u8], Message>(msgpack.as_slice())
+            Ok(Some(msgpack)) => from_read::<&[u8], NetworkMessage>(msgpack.as_slice())
                 .map_err(|e| CodecError::MsgPackDeserializationError)
                 .map(|f| Some(f)),
             Ok(None) => Ok(None),
@@ -75,9 +75,9 @@ impl Decoder for MessageCodec {
     }
 }
 
-impl Encoder<Message> for MessageCodec {
+impl Encoder<NetworkMessage> for MessageCodec {
     type Error = CodecError;
-    fn encode(&mut self, item: Message, dst: &mut BytesMut) -> Result<(), Self::Error> {
+    fn encode(&mut self, item: NetworkMessage, dst: &mut BytesMut) -> Result<(), Self::Error> {
         let mut serialized = Vec::new();
         item.serialize(
             &mut Serializer::new(&mut serialized)
@@ -94,7 +94,7 @@ impl Encoder<Message> for MessageCodec {
 #[cfg(test)]
 mod tests {
     use super::{encode_netstring, netstring_parser, CodecError, MessageCodec};
-    use crate::messages::Message;
+    use crate::messages::NetworkMessage;
     use bytes::{BufMut, BytesMut};
     use quickcheck_macros::quickcheck;
     use tokio_util::codec::{Decoder, Encoder};
@@ -150,10 +150,13 @@ mod tests {
     fn test_encode_decode() -> Result<(), CodecError> {
         let mut codec = MessageCodec {};
         let encoded = &mut BytesMut::with_capacity(0);
-        codec.encode(Message::CreateLobby { name: "Foo".into() }, encoded)?;
+        codec.encode(NetworkMessage::CreateLobby { name: "Foo".into() }, encoded)?;
 
         let decoded = codec.decode(encoded)?;
-        assert_eq!(Some(Message::CreateLobby { name: "Foo".into() }), decoded);
+        assert_eq!(
+            Some(NetworkMessage::CreateLobby { name: "Foo".into() }),
+            decoded
+        );
         assert_eq!(0, encoded.len());
 
         Ok(())
@@ -175,7 +178,7 @@ mod tests {
     fn test_decode_partial() -> Result<(), CodecError> {
         let mut codec = MessageCodec {};
         let encoded = &mut BytesMut::new();
-        codec.encode(Message::CreateLobby { name: "Foo".into() }, encoded)?;
+        codec.encode(NetworkMessage::CreateLobby { name: "Foo".into() }, encoded)?;
 
         encoded.truncate(encoded.len() - 3);
         let prev_len = encoded.len();
@@ -192,9 +195,9 @@ mod tests {
     fn test_decode_whole_and_partial() -> Result<(), CodecError> {
         let mut codec = MessageCodec {};
         let encoded = &mut BytesMut::new();
-        codec.encode(Message::CreateLobby { name: "Foo".into() }, encoded)?;
+        codec.encode(NetworkMessage::CreateLobby { name: "Foo".into() }, encoded)?;
         let first_msg_len = encoded.len();
-        codec.encode(Message::CreateLobby { name: "Bar".into() }, encoded)?;
+        codec.encode(NetworkMessage::CreateLobby { name: "Bar".into() }, encoded)?;
 
         encoded.truncate(encoded.len() - 3);
         let prev_len = encoded.len();
@@ -202,7 +205,10 @@ mod tests {
         let decoded = codec.decode(encoded)?;
 
         assert_eq!(prev_len - first_msg_len, encoded.len());
-        assert_eq!(Some(Message::CreateLobby { name: "Foo".into() }), decoded);
+        assert_eq!(
+            Some(NetworkMessage::CreateLobby { name: "Foo".into() }),
+            decoded
+        );
 
         Ok(())
     }

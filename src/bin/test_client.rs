@@ -1,11 +1,7 @@
 use futures::{SinkExt, StreamExt};
-use multi_chess::{
-    codec::MessageCodec,
-    game::{Color, Position},
-    messages::Message,
-};
+use multi_chess::{codec::MessageCodec, messages::NetworkMessage};
 use std::future::ready;
-use tokio::{io::AsyncReadExt, net::TcpStream};
+use tokio::net::TcpStream;
 use tokio_util::codec::{FramedRead, FramedWrite};
 
 #[tokio::main]
@@ -15,12 +11,12 @@ async fn main() {
 
     let source = FramedRead::new(stream_read, MessageCodec {});
     let mut sink = FramedWrite::new(stream_write, MessageCodec {});
-    sink.feed(Message::CreateLobby {
+    sink.feed(NetworkMessage::CreateLobby {
         name: "new lobby".into(),
     })
     .await
     .unwrap();
-    sink.feed(Message::ListLobbiesRequest).await.unwrap();
+    sink.feed(NetworkMessage::ListLobbiesRequest).await.unwrap();
     sink.flush().await.unwrap();
     source
         .for_each(move |msg| {
