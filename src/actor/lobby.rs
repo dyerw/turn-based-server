@@ -1,8 +1,18 @@
-use actix::{Actor, Addr, Context};
+use actix::{Actor, Addr, Context, Handler, Message, MessageResponse};
 
 use crate::game::Game;
 
 use super::session::Session;
+
+pub enum LobbyResponse {
+    Ok,
+}
+
+#[derive(Message, Debug)]
+#[rtype(result = "Result<LobbyResponse, LobbyError>")]
+pub enum LobbyMessage {
+    JoinLobby(Addr<Session>),
+}
 
 #[derive(Debug)]
 pub struct Lobby {
@@ -15,10 +25,20 @@ impl Actor for Lobby {
     type Context = Context<Self>;
 }
 
-enum LobbyError {
+pub enum LobbyError {
     LobbyFull,
     NotEnoughPlayers,
     GameAlreadyStarted,
+}
+
+impl Handler<LobbyMessage> for Lobby {
+    type Result = Result<LobbyResponse, LobbyError>;
+
+    fn handle(&mut self, msg: LobbyMessage, _ctx: &mut Self::Context) -> Self::Result {
+        match msg {
+            LobbyMessage::JoinLobby(session) => self.add_player(session).map(|_| LobbyResponse::Ok),
+        }
+    }
 }
 
 impl Lobby {

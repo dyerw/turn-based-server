@@ -1,3 +1,4 @@
+use crate::actor::lobby::{LobbyMessage, LobbyResponse};
 use crate::codec::{CodecError, MessageCodec};
 use crate::messages::NetworkMessage;
 use actix::fut::ready;
@@ -17,9 +18,7 @@ fn get_id() -> usize {
 }
 
 use super::lobby::Lobby;
-use super::lobby_manager::{
-    LobbyManager, LobbyManagerMessage, LobbyManagerResponse, LobbyManagerResponseSuccess,
-};
+use super::lobby_manager::{LobbyManager, LobbyManagerMessage, LobbyManagerResponse};
 
 pub struct Session {
     id: usize,
@@ -72,9 +71,7 @@ impl StreamHandler<Result<NetworkMessage, CodecError>> for Session {
                         .into_actor(self)
                         .then(|res, act, ctx| {
                             match res {
-                                Ok(LobbyManagerResponse(Ok(
-                                    LobbyManagerResponseSuccess::CreatedLobby { addr },
-                                ))) => {
+                                Ok(Ok(LobbyManagerResponse::CreatedLobby { addr })) => {
                                     act.lobby = Some(addr);
                                 }
                                 _ => println!("Oh no!"),
@@ -84,7 +81,7 @@ impl StreamHandler<Result<NetworkMessage, CodecError>> for Session {
                         .wait(ctx);
                     }
                     None => {
-                        println!("Lobby Manager Addr not available!");
+                        error!("Unable to communicate with lobby manager from session");
                     }
                 }
             }
@@ -96,9 +93,7 @@ impl StreamHandler<Result<NetworkMessage, CodecError>> for Session {
                             .into_actor(self)
                             .then(|res, act, ctx| {
                                 match res {
-                                    Ok(LobbyManagerResponse(Ok(
-                                        LobbyManagerResponseSuccess::LobbiesList { lobbies },
-                                    ))) => act
+                                    Ok(Ok(LobbyManagerResponse::LobbiesList { lobbies })) => act
                                         .tcp_stream_write
                                         .write(NetworkMessage::ListLobbiesResponse { lobbies }),
                                     _ => {
@@ -109,6 +104,43 @@ impl StreamHandler<Result<NetworkMessage, CodecError>> for Session {
                             })
                             .wait(ctx);
                     }
+                    None => {
+                        error!("Unable to communicate with lobby manager from session");
+                    }
+                }
+            }
+            Ok(NetworkMessage::JoinLobby { name }) => {
+                if self.lobby.is_some() {
+                    self.tcp_stream_write.write(NetworkMessage::ServerError(
+                        "Cannot join lobby when already in lobby.".into(),
+                    ));
+                    return;
+                }
+                let lm_addr = self.lobby_manager.upgrade();
+                match lm_addr {
+                    Some(a) => a
+                        .send(LobbyManagerMessage::ToLobby {
+                            name,
+                            message: LobbyMessage::JoinLobby(ctx.address()),
+                        })
+                        .into_actor(self)
+                        .then(|res, act, _ctx| {
+                            match res {
+                                Ok(Ok(LobbyManagerResponse::LobbyResponse {
+                                    response: Ok(LobbyResponse::Ok),
+                                    lobby,
+                                    name,
+                                })) => {
+                                    act.lobby = Some(lobby);
+                                    debug!("Session {} joined lobby {}", act.id, name);
+                                }
+                                _ => {
+                                    error!("FIXME");
+                                }
+                            }
+                            ready(())
+                        })
+                        .wait(ctx),
                     None => {
                         error!("Unable to communicate with lobby manager from session");
                     }

@@ -20,4 +20,5 @@ pub enum NetworkMessage {
         from: Position,
         to: Position,
     },
+    ServerError(String),
 }
