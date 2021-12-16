@@ -1,4 +1,5 @@
 use crate::actor::lobby::{LobbyMessage, LobbyResponse};
+use crate::actor::lobby_manager::LobbyManagerError;
 use crate::codec::{CodecError, MessageCodec};
 use crate::messages::NetworkMessage;
 use actix::fut::ready;
@@ -133,6 +134,12 @@ impl StreamHandler<Result<NetworkMessage, CodecError>> for Session {
                                 })) => {
                                     act.lobby = Some(lobby);
                                     debug!("Session {} joined lobby {}", act.id, name);
+                                }
+                                Ok(Err(LobbyManagerError::LobbyDoesNotExist)) => {
+                                    act.tcp_stream_write.write(NetworkMessage::ServerError(
+                                        "Unable to join lobby".into(),
+                                    ));
+                                    debug!("Session {} unable to join non-existant lobby", act.id);
                                 }
                                 _ => {
                                     error!("FIXME");

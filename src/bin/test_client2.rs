@@ -14,7 +14,7 @@ async fn main() {
 
     sink.feed(NetworkMessage::ListLobbiesRequest).await.unwrap();
     sink.feed(NetworkMessage::JoinLobby {
-        name: "new lobby".into(),
+        name: "new lobby2".into(),
     })
     .await
     .unwrap();
