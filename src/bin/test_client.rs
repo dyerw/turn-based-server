@@ -11,6 +11,11 @@ async fn main() {
 
     let source = FramedRead::new(stream_read, MessageCodec {});
     let mut sink = FramedWrite::new(stream_write, MessageCodec {});
+    sink.feed(NetworkMessage::SetUsername {
+        name: "myusername".into(),
+    })
+    .await
+    .unwrap();
     sink.feed(NetworkMessage::CreateLobby {
         name: "new lobby".into(),
     })

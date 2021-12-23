@@ -16,6 +16,7 @@ async fn main() {
 
     let lobby_manager = LobbyManager::default();
     let lobby_manager_addr = lobby_manager.start();
+    let lobby_manager_recipient = lobby_manager_addr.recipient();
 
     loop {
         let (socket, _) = listener.accept().await.unwrap();
@@ -24,13 +25,14 @@ async fn main() {
             socket.local_addr().unwrap().ip()
         );
         let (socket_read, socket_write) = split(socket);
-        let weak_lobby_manager_addr = lobby_manager_addr.downgrade();
+
+        let lmr_clone = lobby_manager_recipient.clone();
 
         spawn(async move {
             Session::create(|ctx| {
                 let framed_write = FramedWrite::new(socket_write, MessageCodec, ctx);
                 Session::add_stream(FramedRead::new(socket_read, MessageCodec), ctx);
-                Session::new(weak_lobby_manager_addr, framed_write)
+                Session::new(lmr_clone, framed_write)
             });
         })
         .await

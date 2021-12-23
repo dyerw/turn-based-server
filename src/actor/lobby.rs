@@ -1,8 +1,8 @@
-use actix::{Actor, Addr, Context, Handler, Message, MessageResponse};
+use actix::{Actor, Context, Handler, Message, Recipient};
 
 use crate::game::Game;
 
-use super::session::Session;
+use super::session::SessionMessage;
 
 pub enum LobbyResponse {
     Ok,
@@ -11,14 +11,14 @@ pub enum LobbyResponse {
 #[derive(Message, Debug)]
 #[rtype(result = "Result<LobbyResponse, LobbyError>")]
 pub enum LobbyMessage {
-    JoinLobby(Addr<Session>),
+    JoinLobby(Recipient<SessionMessage>),
 }
 
 #[derive(Debug)]
 pub struct Lobby {
     game: Option<Game>,
-    white_player: Option<Addr<Session>>,
-    black_player: Option<Addr<Session>>,
+    white_player: Option<Recipient<SessionMessage>>,
+    black_player: Option<Recipient<SessionMessage>>,
 }
 
 impl Actor for Lobby {
@@ -42,7 +42,7 @@ impl Handler<LobbyMessage> for Lobby {
 }
 
 impl Lobby {
-    pub fn new(white_player: Addr<Session>) -> Self {
+    pub fn new(white_player: Recipient<SessionMessage>) -> Self {
         Lobby {
             game: None,
             white_player: Some(white_player),
@@ -62,7 +62,7 @@ impl Lobby {
         }
     }
 
-    fn add_player(&mut self, player_session: Addr<Session>) -> Result<(), LobbyError> {
+    fn add_player(&mut self, player_session: Recipient<SessionMessage>) -> Result<(), LobbyError> {
         if Option::is_none(&self.white_player) {
             self.white_player = Some(player_session);
             return Ok(());

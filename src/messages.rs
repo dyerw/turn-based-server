@@ -15,6 +15,13 @@ pub enum NetworkMessage {
     ListLobbiesResponse {
         lobbies: Vec<String>,
     },
+    SetUsername {
+        name: String,
+    },
+    LobbyStateUpdate {
+        player1: Option<String>,
+        player2: Option<String>,
+    },
     MovePiece {
         player: Color,
         from: Position,

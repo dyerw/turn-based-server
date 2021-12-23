@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use super::{
     lobby::{Lobby, LobbyError, LobbyMessage, LobbyResponse},
-    session::Session,
+    session::SessionMessage,
 };
-use actix::{Actor, Addr, Context, Handler, Message, ResponseFuture, WeakAddr, WrapFuture};
+use actix::{Actor, Context, Handler, Message, Recipient, ResponseFuture};
 use log::{debug, info};
 use thiserror::Error;
 
@@ -13,7 +13,7 @@ use thiserror::Error;
 pub enum LobbyManagerMessage {
     CreateLobby {
         name: String,
-        creating_session: Addr<Session>,
+        creating_session: Recipient<SessionMessage>,
     },
     ListLobbies,
     ToLobby {
@@ -24,14 +24,14 @@ pub enum LobbyManagerMessage {
 
 pub enum LobbyManagerResponse {
     CreatedLobby {
-        addr: Addr<Lobby>,
+        lobby: Recipient<LobbyMessage>,
     },
     LobbiesList {
         lobbies: Vec<String>,
     },
     LobbyResponse {
         response: Result<LobbyResponse, LobbyError>,
-        lobby: Addr<Lobby>,
+        lobby: Recipient<LobbyMessage>,
         name: String,
     },
 }
@@ -48,14 +48,14 @@ pub enum LobbyManagerError {
 
 #[derive(Default, Debug)]
 pub struct LobbyManager {
-    lobbies: HashMap<String, WeakAddr<Lobby>>,
+    lobbies: HashMap<String, Recipient<LobbyMessage>>,
 }
 
 impl LobbyManager {
-    fn get_lobby(&self, name: &String) -> Result<Addr<Lobby>, LobbyManagerError> {
+    fn get_lobby(&self, name: &String) -> Result<Recipient<LobbyMessage>, LobbyManagerError> {
         self.lobbies
             .get(name)
-            .and_then(|o| o.upgrade())
+            .map(|r| r.clone())
             .ok_or(LobbyManagerError::LobbyDoesNotExist)
     }
 }
@@ -78,10 +78,12 @@ impl Handler<LobbyManagerMessage> for LobbyManager {
                 } else {
                     let lobby = Lobby::new(creating_session);
                     let addr = Lobby::start(lobby);
+                    let recipient = addr.recipient();
                     let n = name.clone();
-                    self.lobbies.insert(name, addr.downgrade());
+                    let r = recipient.clone();
+                    self.lobbies.insert(name, recipient);
                     info!("Created lobby: {}", n);
-                    Box::pin(async { Ok(LobbyManagerResponse::CreatedLobby { addr }) })
+                    Box::pin(async { Ok(LobbyManagerResponse::CreatedLobby { lobby: r }) })
                 }
             }
             LobbyManagerMessage::ListLobbies => {
