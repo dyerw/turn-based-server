@@ -1,5 +1,5 @@
 use actix::{io::FramedWrite, spawn, Actor, StreamHandler};
-use log::{debug, error, info};
+use log::info;
 use multi_chess::{
     actor::{lobby_manager::LobbyManager, session::Session},
     codec::MessageCodec,

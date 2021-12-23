@@ -67,7 +67,7 @@ impl Decoder for MessageCodec {
         let parsed = netstring_parser(src);
         match parsed {
             Ok(Some(msgpack)) => from_read::<&[u8], NetworkMessage>(msgpack.as_slice())
-                .map_err(|e| CodecError::MsgPackDeserializationError)
+                .map_err(|_| CodecError::MsgPackDeserializationError)
                 .map(|f| Some(f)),
             Ok(None) => Ok(None),
             Err(e) => Err(e),
@@ -84,7 +84,7 @@ impl Encoder<NetworkMessage> for MessageCodec {
                 .with_string_variants()
                 .with_struct_map(),
         )
-        .map_err(|e| CodecError::MsgPackSerializationError(item))?;
+        .map_err(|_| CodecError::MsgPackSerializationError(item))?;
 
         encode_netstring(&serialized, dst)?;
         Ok(())

@@ -103,7 +103,7 @@ impl StreamHandler<Result<NetworkMessage, CodecError>> for Session {
                 self.lobby_manager
                     .send(LobbyManagerMessage::ListLobbies)
                     .into_actor(self)
-                    .then(|res, act, ctx| {
+                    .then(|res, act, _ctx| {
                         match res {
                             Ok(Ok(LobbyManagerResponse::LobbiesList { lobbies })) => act
                                 .tcp_stream_write
